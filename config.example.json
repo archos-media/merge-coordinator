@@ -7,6 +7,9 @@
   "$comment_requiredChecks": "The exact check-run names that must be completed and successful on the head commit before it lands. Copy them from the branch/ruleset protection, character for character. A name that never appears on the commit is treated as a failure, not as 'nothing to check'.",
   "requiredChecks": ["CI passed"],
 
+  "$comment_ciWorkflow": "The file name, under .github/workflows, of the workflow that runs CI on pull requests. /merge-ready reads its runs to say where a pull request ahead of yours stands, and the report after a land reads them to say what the land cost.",
+  "ciWorkflow": "ci.yml",
+
   "$comment_backbone": "github-merge-queue = the repository has a merge queue rule, so landing hands the PR to the queue and the queue does the speculative test. serialized-claim = no queue available, so the claim label plus the freshness and verify steps are the whole guarantee.",
   "backbone": "serialized-claim",
 

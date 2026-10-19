@@ -3,8 +3,8 @@
 # issue-claim-others.yml run it; the plugin ships starting copies of both as
 # issue-claim.example.yml and issue-claim-others.example.yml.
 #
-# WHY IT IS ON GITHUB. Most of the safety net here binds only Claude sessions:
-# memory, the guard hooks, the shared-checkout rules. An agent from another
+# WHY IT IS ON GITHUB. Most of this plugin's safety net binds only Claude
+# sessions: the guard hooks and the skill. An agent from another
 # vendor meets only what GitHub enforces. So the rule "one open pull request
 # claims an issue" lives in a check that every pull request runs, drafts
 # included.

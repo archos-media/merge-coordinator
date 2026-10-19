@@ -473,7 +473,7 @@ merge-coordinator@merge-coordinator`, then `vendor.sh <tag>` in each repository.
 ## Tests
 
 ```sh
-for t in scripts/test-*.sh; do bash "$t" || echo "FAILED: $t"; done
+f=0; for t in scripts/test-*.sh; do bash "$t" || { echo "FAILED: $t"; f=1; }; done; [ "$f" -eq 0 ]
 ```
 
 The suites are offline and run in CI on every pull request. `probe-live.sh` is

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Live probe: run every helper in lib/gh.sh against the REAL GitHub API.
 #
-# WHY THIS EXISTS. The four test-*.sh suites are offline and fixture-driven, and
+# WHY THIS EXISTS. The test-*.sh suites are offline and fixture-driven, and
 # lib/fixture-gh.sh does not implement `--jq`. Every assertion in those suites is
 # therefore handed a value that no jq filter ever selected. The filters are the
 # one part of this plugin the fixtures structurally cannot prove, and a filter

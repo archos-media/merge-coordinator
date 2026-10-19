@@ -3,10 +3,10 @@
 #
 # THE ASSERTIONS THAT MATTER ARE THE HONESTY ONES. This script exists because a
 # fail-closed gate spent three days reporting a reason that was fiction, and a
-# report about that gate which invents its own answers is worse than none. So
-# the weight below is on the three ways it could lie:
+# report about what a land cost which invents its own answers is worse than none. So
+# the weight below is on the ways it could lie:
 #
-#   - a job log it could not read must not read as "the job did not run"
+#   - a listing it could not read must not read as "there was no run"
 #   - no merge-group run at all must not read as "the land was free"
 #   - a draft's skipped run must not read as a suite that was paid for
 #
@@ -51,8 +51,8 @@ cat >"$WORK/config.json" <<'JSON'
 }
 JSON
 
-# A land that went the way it is supposed to: one pull-request suite, one merge
-# group, and the gate hit so the merge group did no work.
+# A land that went the way it is supposed to: one pull-request suite, and one
+# short merge group.
 reset_fixture() {
 	rm -rf "$FIX"
 	mkdir -p "$FIX"
@@ -60,17 +60,10 @@ reset_fixture() {
 	printf 'headsha1\n' >"$FIX/head.txt"
 	printf '900\t2026-08-29T10:00:00Z\t2026-08-29T10:07:12Z\tsuccess\n' >"$FIX/prruns.txt"
 	printf '901\t2026-08-29T10:20:00Z\t2026-08-29T10:20:31Z\tsuccess\n' >"$FIX/mgruns.txt"
-	printf '5551\n' >"$FIX/jobs.txt"
-	{
-		echo "2026-08-29T10:20:20Z ci-proven-tree: this run builds tree abc123 (commit deadbeef)"
-		echo "2026-08-29T10:20:25Z ci-proven-tree: HIT - tree already proven by headsha1. This run may skip the work."
-	} >"$FIX/joblog.txt"
 	cat >"$FIX/routes" <<ROUTES
 pr view 1200*	head.txt
 run list --repo $REPO --workflow ci.yml --event pull_request*	prruns.txt
 run list --repo $REPO --workflow ci.yml --event merge_group*	mgruns.txt
-api repos/$REPO/actions/runs/*/jobs*	jobs.txt
-api repos/$REPO/actions/jobs/5551/logs*	joblog.txt
 ROUTES
 }
 
@@ -121,9 +114,7 @@ run_absent() {
 # The happy path
 # --------------------------------------------------------------------------
 reset_fixture
-run "a hit is reported as a hit" "HIT - tree already proven"
-reset_fixture
-run "one merge group is counted once" "7.2 on the pull request"
+run "both halves are added into one total" "This land cost 7.7 min of CI: 7.2 on the pull request, 0.5 on the queue."
 reset_fixture
 run_absent "one merge group does not claim the base moved" "the base moved underneath it"
 
@@ -141,35 +132,6 @@ run "two merge groups for one pull request are called out" "2 merge-group runs f
 # --------------------------------------------------------------------------
 # THE HONESTY CASES
 # --------------------------------------------------------------------------
-# An unreadable job log must say it could not look. If this ever reads as "the
-# job did not run" it has become the bug it was written to catch.
-reset_fixture
-printf 'FAIL\n' >"$FIX/jobs.txt"
-cat >"$FIX/routes" <<ROUTES
-pr view 1200*	head.txt
-run list --repo $REPO --workflow ci.yml --event pull_request*	prruns.txt
-run list --repo $REPO --workflow ci.yml --event merge_group*	mgruns.txt
-api repos/$REPO/actions/runs/*/jobs*	FAIL
-api repos/$REPO/actions/jobs/*/logs*	joblog.txt
-ROUTES
-run "an unreadable proven job says could not look" "could not read the 'Already proven' job"
-reset_fixture
-cat >"$FIX/routes" <<ROUTES
-pr view 1200*	head.txt
-run list --repo $REPO --workflow ci.yml --event pull_request*	prruns.txt
-run list --repo $REPO --workflow ci.yml --event merge_group*	mgruns.txt
-api repos/$REPO/actions/runs/*/jobs*	FAIL
-api repos/$REPO/actions/jobs/*/logs*	joblog.txt
-ROUTES
-# The discrimination that matters, and the one the first version of this test
-# got wrong. Asserting on "did not run" matched the script's OWN sentence
-# explaining the distinction — a guard matching its own documentation, which is
-# an assertion that cannot fail. What actually has to be true is that an
-# unreadable job does not take the other branch: "logged nothing about the
-# tree" is the answer for a job that ran and said nothing, and it must never be
-# printed for a job nobody could read.
-run_absent "an unreadable proven job is not reported as an empty one" "logged nothing about the tree"
-
 # No merge group at all. The land did not go through the queue — which is not
 # the same as costing nothing, and must never print as a total of zero.
 reset_fixture

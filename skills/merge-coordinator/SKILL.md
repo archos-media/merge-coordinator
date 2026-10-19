@@ -106,7 +106,7 @@ The sequence is seven steps and is safe to re-run from any point: preflight,
 claim, freshness, verify, land, release, notify. `references/protocol.md` has
 each one, what it refuses, and how to recover.
 
-## The three things that look fine and are not
+## Four things that look fine and are not
 
 1. **A green check on a stale head.** The run passed against a default branch
    that no longer exists. Step 3 refuses this on `serialized-claim`. GitHub does

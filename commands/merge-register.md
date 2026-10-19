@@ -22,7 +22,8 @@ Register the current branch, declaring **$ARGUMENTS**.
    shape of the task changes.
 
 3. The pull request it opens is a **draft on purpose**. It says the branch is
-   claimed, not that it is finished, and drafts run no CI here.
+   claimed, not that it is finished. In a repository whose CI skips drafts,
+   it costs no CI either.
 
 4. Report the pull request number to the user, and say what was declared.
 
