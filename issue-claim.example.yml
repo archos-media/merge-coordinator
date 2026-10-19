@@ -1,0 +1,75 @@
+# The merge coordinator's issue claim check: one open pull request per issue.
+#
+# Copy this to .github/workflows/issue-claim.yml, and issue-claim-others.example.yml
+# beside it as .github/workflows/issue-claim-others.yml, in a repository that
+# carries a pinned copy of the coordinator in tools/merge-coordinator
+# (adopting.md, 1b). The files are yours once copied: a new release that changes
+# them says so in its notes. claim-gate.sh finds this check's runs by this file
+# name and by the pull_request event, so keep both.
+#
+# A pull request claims an issue with an `issue: N` line in its registration
+# (the footprint block), or with GitHub's closing reference (`Closes #N`). When
+# two open pull requests claim the same issue, the lower number holds it; the
+# newer one fails this check and gets the merge:duplicate-claim label, which
+# ready.sh and land.sh refuse. Drafts are checked too: a claim is made when the
+# draft opens.
+#
+# This file holds the claim job alone, on pull_request alone, so no run of it
+# ever carries a skipped `issue claim` check beside the real one, and
+# re-running it re-checks this pull request and nothing else. The other pull
+# requests a change affects are re-checked by issue-claim-others.yml.
+name: Issue claim
+
+on:
+  pull_request:
+    # edited: a body edit can add or change the claim.
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  # Where the check is required and a merge queue is used, the queue asks for
+  # it too. A required check that never reports on merge_group holds the queue
+  # until it times out.
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  claim:
+    name: issue claim
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # A newer push to the same pull request makes this run's answer stale.
+    concurrency:
+      group: issue-claim-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: write # the label and the one comment
+      issues: write # labels and comments on a pull request go through the issues API
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: in a merge queue, pass
+        if: github.event_name == 'merge_group'
+        run: echo "The claim was checked before the pull request was queued."
+      # The gate as it is on the BASE branch, not the pull request's head: a
+      # pull request cannot change the code that judges its own claim, one
+      # opened before the copy moved still finds it, and a re-run still works
+      # after the pull request comes to conflict (and so has no merge ref). The
+      # claim itself is read through the API.
+      - name: check out the gate from the base branch
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          persist-credentials: false
+          sparse-checkout: |
+            tools/merge-coordinator
+            .github/merge-coordinator.json
+          sparse-checkout-cone-mode: false
+      # Fails when the pull request is a duplicate, and when the claims could
+      # not be read.
+      - name: claim-gate.sh <this pull request>
+        if: github.event_name == 'pull_request'
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: bash tools/merge-coordinator/scripts/claim-gate.sh "$PR"

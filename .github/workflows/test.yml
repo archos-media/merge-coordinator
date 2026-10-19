@@ -1,0 +1,185 @@
+# The coordinator's own tests, in its own repository. Consumers carry a pinned
+# copy (vendor.sh) and check only that the copy is the release it claims to be
+# (check-vendored.sh); whether the release WORKS is proved here, once.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+# A pull request's new push cancels its older run. A push to main or a tag
+# gets a group of its own: a group holds one waiting run, and a newer one
+# cancels it, which on main would skip that merge's bump check and its tag.
+concurrency:
+  group: tests-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  suites:
+    name: offline suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # The bump check reads the base commit and the merge base.
+          fetch-depth: 0
+
+      # A carriage return in a script breaks it on Linux and nowhere else: Git
+      # Bash for Windows ignores CR, so every suite passes on the machine that
+      # wrote the file. A lone CR also stops git normalising the file on
+      # commit, so one stray byte ships CRLF line endings for the whole file.
+      # That shipped once: guard-merge.sh allowed every merge on Linux.
+      - name: No carriage returns in any tracked file
+        shell: python
+        run: |
+          import subprocess, sys
+          files = [f for f in subprocess.run(["git", "ls-files", "-z"], capture_output=True, check=True).stdout.split(b"\0") if f]
+          if not files:
+              sys.exit("no tracked files listed: could not look")
+          bad = [f.decode() for f in files if b"\r" in open(f, "rb").read()]
+          print("scanned %d files" % len(files))
+          if bad:
+              print("carriage returns in:\n  " + "\n  ".join(bad))
+              sys.exit(1)
+
+      # The plugin as Claude Code reads it. A command whose frontmatter does not
+      # parse still loads, with its description silently dropped, so only the
+      # validator sees it. It is validated twice: as checked out here, and with
+      # the CRLF line endings git gives it on Windows, where a value that parses
+      # with LF can fail (an unquoted `[a] [b]` hint did, and that command lost
+      # its frontmatter on Windows only). Then a clean install, to show every
+      # hook event in hooks/hooks.json and every command and skill is
+      # registered: plugin.json does not name hooks.json, because Claude Code
+      # loads it by itself, and if that ever stops, the guards stop firing with
+      # nothing to say so. The CLI is pinned and runs with an empty config
+      # folder and no credentials.
+      - name: Claude Code validates and installs the plugin
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-config
+        run: |
+          npm install --prefix "$RUNNER_TEMP/cc" --no-audit --no-fund @anthropic-ai/claude-code@2.1.303
+          claude="$RUNNER_TEMP/cc/node_modules/.bin/claude"
+          "$claude" --version
+          "$claude" plugin validate --strict .
+          crlf="$RUNNER_TEMP/crlf"
+          mkdir -p "$crlf"
+          git ls-files -z | tar --null -T - -cf - | tar -xf - -C "$crlf"
+          find "$crlf" -name '*.md' -exec sed -i 's/\r*$/\r/' {} +
+          converted=$(python3 -c 'import pathlib, sys; print(sum(b"\r\n" in p.read_bytes() for p in pathlib.Path(sys.argv[1]).rglob("*.md")))' "$crlf")
+          total=$(git ls-files '*.md' | wc -l)
+          echo "markdown files with CRLF line endings: $converted of $total"
+          [ "$total" -gt 0 ] && [ "$converted" -eq "$total" ] || { echo "not every markdown file was converted: the CRLF pass would not check them all"; exit 1; }
+          (cd "$crlf" && "$claude" plugin validate --strict .)
+          # The README's one-command install.
+          "$claude" plugin install merge-coordinator --marketplace "$PWD"
+          details=$("$claude" plugin details merge-coordinator)
+          echo "$details"
+          python3 - "$details" <<'EOF'
+          import glob, json, os, re, sys
+          out = sys.argv[1]
+          def listed(kind):
+              m = re.search(r"^\s*%s \((\d+)\)(.*)$" % kind, out, re.M)
+              if not m:
+                  sys.exit("no %s line in plugin details: could not look" % kind)
+              names = m.group(2).split("(harness")[0]
+              return sorted(n.strip() for n in names.split(",") if n.strip())
+          want = {
+              "Hooks": sorted(json.load(open("hooks/hooks.json"))["hooks"]),
+              "Skills": sorted([os.path.basename(p)[:-3] for p in glob.glob("commands/*.md")]
+                               + [os.path.basename(os.path.dirname(p)) for p in glob.glob("skills/*/SKILL.md")]),
+          }
+          bad = False
+          for kind, names in want.items():
+              got = listed(kind)
+              print("%s: want %s, installed %s" % (kind, names, got))
+              if not names or got != names:
+                  bad = True
+          sys.exit(1 if bad else 0)
+          EOF
+
+      # Every test-*.sh, each to completion, so one red suite does not hide
+      # another. The count of suites run is printed and must not be zero: a
+      # glob that matched nothing would otherwise be a green run that tested
+      # nothing.
+      - name: Run every suite
+        run: |
+          ran=0
+          failed=""
+          for t in scripts/test-*.sh; do
+            [ -f "$t" ] || continue
+            ran=$((ran + 1))
+            echo "::group::$t"
+            if bash "$t"; then :; else failed="$failed $t"; fi
+            echo "::endgroup::"
+          done
+          echo "suites run: $ran"
+          [ "$ran" -gt 0 ] || { echo "no suites found"; exit 1; }
+          [ -z "$failed" ] || { echo "failed:$failed"; exit 1; }
+
+      # An installed plugin updates only when plugin.json's version changes,
+      # so a plugin change without a bump never reaches a session. The base is
+      # the base branch's tip when the pull request last ran, which may be
+      # behind; after a merge, the release job checks main from the commit
+      # that set the version.
+      - name: Plugin changes raise the version
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/check-version-bump.sh "$BASE" "$HEAD"
+
+      # The release job publishes this section as the version's GitHub
+      # Release, so a version with no notes is caught here, before it merges.
+      - name: The CHANGELOG has notes for this version
+        run: bash scripts/release-notes.sh HEAD
+
+      # A release tag must name the version the plugin declares. Consumers
+      # vendor by tag and the installed plugin reports plugin.json, so the two
+      # disagreeing would make vendor-status.sh call a current copy stale.
+      - name: The tag names the plugin.json version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          declared="v$(python3 -c 'import json; print(json.load(open(".claude-plugin/plugin.json"))["version"])')"
+          echo "tag $GITHUB_REF_NAME, plugin.json $declared"
+          [ "$declared" = "$GITHUB_REF_NAME" ]
+
+  # Every push to main: check no plugin file changed since the commit that set
+  # the version, then tag that commit v<version> if it is not tagged yet, so
+  # the copies other repositories pin (vendor.sh <tag>) can reach it. The tag
+  # is made from plugin.json, so it names that version by construction; a tag
+  # pushed with this job's token starts no workflow run, so the tag check
+  # above covers only tags pushed by hand. scripts/release-tag.sh has the
+  # rules and test-release-tag.sh the cases. Then the tag's GitHub Release,
+  # its notes the version's CHANGELOG section (scripts/release-publish.sh).
+  release:
+    name: tag the release
+    needs: suites
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # release-tag.sh walks main's history to the commit that set the version.
+          fetch-depth: 0
+
+      - name: Check main since the release, and tag it
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          bash scripts/release-tag.sh "$GITHUB_SHA"
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(python3 -c 'import json; print(json.load(open(".claude-plugin/plugin.json"))["version"])')"
+          bash scripts/release-publish.sh "$GITHUB_REPOSITORY" "$tag"

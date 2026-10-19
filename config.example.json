@@ -1,0 +1,50 @@
+{
+  "$comment": "Copy this to .github/merge-coordinator.json in your repository and edit it. Nothing in the plugin reads repository specifics from anywhere else. Every key below is required except $comment, outOfQueueCi and dependabot.",
+
+  "repo": "OWNER/NAME",
+  "defaultBranch": "main",
+
+  "$comment_requiredChecks": "The exact check-run names that must be completed and successful on the head commit before it lands. Copy them from the branch/ruleset protection, character for character. A name that never appears on the commit is treated as a failure, not as 'nothing to check'.",
+  "requiredChecks": ["CI passed"],
+
+  "$comment_backbone": "github-merge-queue = the repository has a merge queue rule, so landing hands the PR to the queue and the queue does the speculative test. serialized-claim = no queue available, so the claim label plus the freshness and verify steps are the whole guarantee.",
+  "backbone": "serialized-claim",
+
+  "$comment_outOfQueueCi": "Optional. The workflow files to run against the default branch after landing merges a pull request ITSELF, with no queue in front of it. Use this when the repository stopped running CI on a push to the default branch because the merge queue already tests the tree a merge produces. That leaves one gap: a merge that skips the queue, which is every merge on a serialized-claim backbone and every --admin merge. Landing never fires these on the queue path, where they would only repeat the run the queue just did. Leave the key out and nothing is fired, which is correct for a repository that still runs CI on push.",
+  "outOfQueueCi": ["ci.yml", "secret-scan.yml"],
+
+  "$comment_requireApproval": "Set this to whatever the branch protection actually requires. When true, landing refuses an unapproved PR unless --admin is passed, and --admin still runs every other step of the sequence.",
+  "requireApproval": true,
+
+  "labels": {
+    "landing": "merge:landing",
+    "blocked": "merge:blocked",
+    "needsRebase": "merge:needs-rebase"
+  },
+
+  "$comment_releaseGuard": "Checked after a merge: the default branch must still contain a heading for the newest tag. headingFormat is a literal string with {tag} substituted for the tag name. Set changelog to \"\" to switch the guard off.",
+  "releaseGuard": {
+    "changelog": "CHANGELOG.md",
+    "headingFormat": "## [{tag}]"
+  },
+
+  "$comment_dependabot": "Optional. Read by /merge-deps when it reviews a Dependabot pull request. fixups: a command that must run when a file matching `when` changes (a glob in which * crosses directories, as in hotspots). produces, optional, is a glob for the files the command writes, read from the folder of the file that matched `when` (vendor/** beside go/go.mod is go/vendor/**): when the pull request changes that file and also one matching produces, other than lock files, the fix-up is reported as carried, not as one to run. Dependabot regenerates some outputs itself, a committed vendor/ among them, so give produces for any fix-up whose output it may already carry. pairings: two packages that must move together; a pull request that moves one without the other is reported as a MISMATCH. Leave the block out and the Dependabot stop on ready and land still works.",
+  "dependabot": {
+    "fixups": [
+      { "when": "go/go.mod", "run": "cd go && go mod vendor", "produces": "vendor/**", "why": "vendored modules must match go.mod" }
+    ],
+    "pairings": [
+      { "package": "next", "with": "eslint-config-next", "why": "keep the lint config on the same major as next" }
+    ]
+  },
+
+  "$comment_hotspots": "Paths where a CLEAN textual merge is the dangerous case. Two PRs touching the same hotspot must serialize even when their diffs do not overlap by a single line. path is a shell glob in which * crosses directory separators, so \"vendor/**\" and \"vendor/*\" mean the same thing. rule is either serialize (never land two of these at once) or alone (land with nothing else in flight). action is printed to whoever is landing; why is printed so the rule can be argued with rather than obeyed.",
+  "hotspots": [
+    {
+      "path": "CHANGELOG.md",
+      "rule": "serialize",
+      "action": "Rebase onto the default branch and re-add the entry by hand. Never let git resolve this file.",
+      "why": "Two PRs inserting under the same heading merge cleanly and silently drop one of the entries."
+    }
+  ]
+}

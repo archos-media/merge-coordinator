@@ -1,0 +1,73 @@
+# The merge coordinator's issue claim check, for the OTHER pull requests.
+#
+# Copy this to .github/workflows/issue-claim-others.yml beside issue-claim.yml
+# (see issue-claim.example.yml). The file is yours once copied.
+#
+# One pull request's event can change another's verdict: an older one that
+# claims an issue later, or a holder that is reopened, makes a newer one a
+# duplicate while its check stays green; a holder that closes clears the ones
+# it held back. This re-runs the `issue claim` check on every open pull
+# request whose label no longer matches its verdict, the one whose event fired
+# included, and after a close also on every refused one, so it goes green, or
+# names its new holder.
+#
+# pull_request_target, not pull_request: GitHub runs no pull_request workflow
+# for a pull request with a merge conflict, whatever the activity, and a holder
+# that is reopened, edits its claim or closes may well have one. It runs for a
+# fork's pull request too, with a token that can re-run checks. It runs the
+# DEFAULT branch's copy of this file and checks out the default branch, never
+# pull request code (GitHub's rule since 8 December 2025, whatever the pull
+# request's base). It is a file of its own so that no run of issue-claim.yml
+# carries a skipped `issue claim` check, and re-running a claim check never
+# sets this off again.
+name: Issue claim (other pull requests)
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, ready_for_review, closed]
+
+permissions:
+  contents: read
+
+jobs:
+  others:
+    name: issue claim (other pull requests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Two queues across the repository, one for closes and one for every other
+    # change, each one job at a time and never cancelled midway: two closes
+    # close together would otherwise re-run the same check twice. A waiting
+    # close, which also refreshes every refused pull request, is never replaced
+    # by a later change's narrower re-check. A close and a change can run at
+    # once and re-run the same check; claim-gate.sh takes "already re-running"
+    # as done, so that costs a spare run, never a red one.
+    concurrency:
+      group: issue-claim-others-${{ github.event.action == 'closed' && 'close' || 'change' }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: read # list the pull requests that carry the label
+      issues: write # a note on a pull request whose check could not be re-run
+      actions: write # re-run the check
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # No ref: the default branch. Never the pull request's head here: this
+      # job holds a write token, and a fork's code must not run with it.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            tools/merge-coordinator
+            .github/merge-coordinator.json
+          sparse-checkout-cone-mode: false
+      # This pull request is reconciled too, not left to its own claim job: while
+      # it has a merge conflict GitHub runs no claim job for it, whatever the
+      # event. When its own job is running, the re-check waits for it and runs
+      # once more only if its label and verdict still disagreed when this began.
+      - name: claim-gate.sh --reconcile
+        if: github.event.action != 'closed'
+        run: bash tools/merge-coordinator/scripts/claim-gate.sh --reconcile
+      - name: claim-gate.sh --after-close
+        if: github.event.action == 'closed'
+        run: bash tools/merge-coordinator/scripts/claim-gate.sh --after-close

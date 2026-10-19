@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/archos-media/merge-coordinator/security/advisories/new
+    about: Report it privately, never in a public issue.
+  - name: Adoption guide
+    url: https://github.com/archos-media/merge-coordinator/blob/main/skills/merge-coordinator/references/adopting.md
+    about: How to set it up, step by step.

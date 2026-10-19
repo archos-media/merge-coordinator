@@ -1,0 +1,76 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-claim.sh\"",
+            "shell": "bash",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-merge.sh\"",
+            "shell": "bash",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-ready.sh\"",
+            "shell": "bash",
+            "timeout": 90
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-vendored-edit.sh\"",
+            "shell": "bash",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/register-hook.sh\"",
+            "shell": "bash",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/vendor-status.sh\"",
+            "shell": "bash",
+            "timeout": 25
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/vendor-status.sh\"",
+            "shell": "bash",
+            "timeout": 25
+          }
+        ]
+      }
+    ]
+  }
+}

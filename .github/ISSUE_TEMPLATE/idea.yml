@@ -1,0 +1,15 @@
+name: Idea or question
+description: A change you would like, or a question about setting it up.
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want to do
+      description: The problem first, then any change you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Your setup
+      description: Merge queue or not, how many sessions or people land at once, and anything in your config that bears on it.

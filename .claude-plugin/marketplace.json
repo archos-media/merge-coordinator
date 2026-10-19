@@ -1,0 +1,14 @@
+{
+  "name": "merge-coordinator",
+  "description": "The merge-coordinator Claude Code plugin, served from its own repository.",
+  "owner": {
+    "name": "Archos Media"
+  },
+  "plugins": [
+    {
+      "name": "merge-coordinator",
+      "source": ".",
+      "description": "Orders concurrent pull requests so that landing one never silently invalidates another session's green CI."
+    }
+  ]
+}

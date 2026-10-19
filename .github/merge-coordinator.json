@@ -1,0 +1,41 @@
+{
+  "$comment": "This repository lands its own pull requests with its own plugin. Start from config.example.json, which explains every key.",
+
+  "repo": "archos-media/merge-coordinator",
+  "defaultBranch": "main",
+
+  "$comment_requiredChecks": "The job in .github/workflows/test.yml that runs on every pull request.",
+  "requiredChecks": ["offline suites"],
+
+  "backbone": "serialized-claim",
+
+  "$comment_requireApproval": "The branch rules want one approving review. With a single maintainer, landing passes --admin.",
+  "requireApproval": true,
+
+  "labels": {
+    "landing": "merge:landing",
+    "blocked": "merge:blocked",
+    "needsRebase": "merge:needs-rebase"
+  },
+
+  "$comment_releaseGuard": "After every landing, the guard checks CHANGELOG.md on main still has the newest tag's heading.",
+  "releaseGuard": {
+    "changelog": "CHANGELOG.md",
+    "headingFormat": "## [{tag}]"
+  },
+
+  "hotspots": [
+    {
+      "path": ".claude-plugin/plugin.json",
+      "rule": "serialize",
+      "action": "Rebase onto main and set the version by hand, one above main's.",
+      "why": "Two pull requests that raise the version to the same number merge cleanly into one version for two changes. The second landing then fails main's release job: a plugin file changed after the commit that set the version."
+    },
+    {
+      "path": "CHANGELOG.md",
+      "rule": "serialize",
+      "action": "Rebase onto main and re-add the entry by hand. Never let git resolve this file.",
+      "why": "Two pull requests inserting under the same heading merge cleanly and silently drop one of the entries."
+    }
+  ]
+}

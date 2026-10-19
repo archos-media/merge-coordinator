@@ -1,0 +1,36 @@
+{
+  "$comment": "Fixtures for scripts/probe-live.sh. Copy this to .github/merge-coordinator-probe.json in your repository and point every value at your own history. Only the probe reads this file; the landing scripts never do. Any key you leave out is reported N/M (not measurable), never PASS.",
+
+  "$comment_expectConfig": "Written down by hand, not copied by a script: each config reader is checked against these. They must match .github/merge-coordinator.json.",
+  "expectConfig": {
+    "repo": "OWNER/NAME",
+    "defaultBranch": "main",
+    "backbone": "serialized-claim",
+    "requireApproval": false,
+    "labels": { "landing": "merge:landing" },
+    "requiredChecks": ["CI passed"],
+    "hotspotCount": 1
+  },
+
+  "$comment_mergedPr": "A MERGED pull request: its file list can no longer change, so fileCount is fixed. Its head commit must be green on every required check. files names a few paths it touched.",
+  "mergedPr": {
+    "number": 1,
+    "fileCount": 10,
+    "files": [".github/merge-coordinator.json"]
+  },
+
+  "$comment_noCheckCommit": "A full 40-character sha from before any workflow existed, with 0 check-runs and 0 commit statuses. The repository's first week is the usual place.",
+  "noCheckCommit": "0000000000000000000000000000000000000000",
+
+  "$comment_footprintPr": "A pull request whose body carries a footprint block of two or more paths. declares lists the first and last of them.",
+  "footprintPr": {
+    "number": 2,
+    "declares": ["src/**", "docs/**"]
+  },
+
+  "$comment_noFootprintPr": "A pull request whose body carries no footprint block.",
+  "noFootprintPr": 1,
+
+  "$comment_changelogMinBytes": "A size the release-guard changelog is known to exceed, so a decode that returned a fragment fails. Optional; defaults to 1.",
+  "changelogMinBytes": 1000
+}
