@@ -216,7 +216,7 @@ Then, once the queue is carrying the merges:
 ## 5. Drafts, and the check that passes with nothing behind it
 
 A draft PR is registration, not a request to test anything, and testing every
-push to one is the largest avoidable cost. Two changes turn it off:
+push to one is often the largest avoidable cost. Two changes turn it off:
 
 ```yaml
 on:

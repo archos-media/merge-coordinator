@@ -22,7 +22,7 @@
 # paid twice is not an error — sometimes the tree really did change and the
 # second suite was the point. It reports, and the operator decides.
 #
-# IT SAYS "COULD NOT LOOK" OUT LOUD. Same rule as the gate it watches: an API
+# IT SAYS "COULD NOT LOOK" OUT LOUD. Same rule as the rest of the plugin: an API
 # call that fails is never reported as an absence. A missing merge-group run
 # means "this did not land through the queue", not "this was free".
 #

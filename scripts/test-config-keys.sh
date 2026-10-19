@@ -9,7 +9,8 @@
 # because their fixtures write their own configs. ciWorkflow shipped that way.
 #
 # The optional readers (mc_cfg_get_opt, mc_cfg_list_opt) are left out: an
-# absent key is an answer to them.
+# absent key is an answer to them. Two keys have readers of their own in
+# lib/gh.sh and are listed by hand below.
 set -uo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -27,9 +28,9 @@ bad() {
 	return 0
 }
 
-# The literal keys passed to the required readers, one per line. A key built
-# from a variable ("$key", "labels.$want") cannot be read this way; the
-# literal calls beside it cover the same keys.
+# The literal keys passed to the required readers, one per line, quoted or
+# not. A key built from a variable ("$key", "labels.$want") cannot be read
+# this way; literal calls elsewhere cover the same keys.
 keys=$(MC_ROOT="$ROOT" mc_py -c '
 import glob, os, re
 root = os.environ["MC_ROOT"]
@@ -38,10 +39,13 @@ for path in glob.glob(os.path.join(root, "scripts", "*.sh")) + glob.glob(os.path
     if os.path.basename(path).startswith("test-"):
         continue
     with open(path, encoding="utf-8") as fh:
-        for m in re.finditer(r"\bmc_cfg_(?:get|list)\b[ \t]+([A-Za-z][A-Za-z0-9.]*)", fh.read()):
+        for m in re.finditer(r"\bmc_cfg_(?:get|list)\b[ \t]+[\"\x27]?([A-Za-z][A-Za-z0-9.]*[A-Za-z0-9])[\"\x27]?(?=[\s)]|$)", fh.read()):
             found.add(m.group(1))
 print("\n".join(sorted(found)))
 ')
+# Required by readers of their own: mc_require_config (repo) and mc_hotspots
+# (hotspots), each of which refuses a config without it.
+keys=$(printf '%s\nrepo\nhotspots\n' "$keys" | sort -u | grep .)
 count=$(printf '%s\n' "$keys" | grep -c .)
 
 # Fewer than this and the scan itself is broken: there are more than ten

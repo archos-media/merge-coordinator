@@ -3,7 +3,7 @@
 #
 # THE ASSERTIONS THAT MATTER ARE THE HONESTY ONES. This script exists because a
 # fail-closed gate spent three days reporting a reason that was fiction, and a
-# report about that gate which invents its own answers is worse than none. So
+# report about what a land cost which invents its own answers is worse than none. So
 # the weight below is on the ways it could lie:
 #
 #   - a listing it could not read must not read as "there was no run"
