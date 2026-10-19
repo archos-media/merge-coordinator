@@ -7,18 +7,16 @@
 # always fires produce the same experience from outside. Nothing in the tool
 # ever said what a land cost, so nothing could tell the two apart.
 #
-# It went wrong exactly that way. The repository this was built for shipped a
-# CI cache keyed on the tree (its `ci-proven-tree` step) on 27 August 2026, to
-# stop each land paying two full suites. Measured on 29 August:
-# it had returned a miss on THIRTEEN OF THIRTEEN lands and had never once
-# worked. The reason it gave was fiction — the job had no `checks: read`, so
-# the call it made 403'd every time, and an unread answer was reported as a
-# considered one. Three days, about three hundred CI-minutes, and the only
+# It went wrong exactly that way. A CI cache keyed on the tree, meant to stop
+# each land paying for two full suites, returned a miss on every land for three
+# days and never once worked. The reason it gave was fiction: the job lacked a
+# permission, so the call it made failed every time, and an unread answer was
+# reported as a considered one. About three hundred CI-minutes, and the only
 # signal was a line in a job log nobody reads after a green merge.
 #
-# So this script reads that line and puts it where a land already looks.
-# land.sh --post-merge calls it. A systematic miss now shows up on the next
-# land instead of after three days.
+# So this script puts the cost where a land already looks: the minutes on the
+# pull request and on the merge queue, side by side. land.sh --post-merge
+# calls it. A land that pays twice now shows on that land, not three days on.
 #
 # WHAT IT DOES NOT DO. It does not judge and it does not fail. A land that
 # paid twice is not an error — sometimes the tree really did change and the
@@ -65,25 +63,6 @@ except Exception:
 else:
     sys.stdout.write("%.1f" % ((b - a).total_seconds() / 60.0))
 '
-}
-
-# The `ci-proven-tree:` lines out of one run's "Already proven" job.
-#
-# Reads the ONE job's log, not the run's. `gh run view --log` downloads every
-# job's output, which for a full suite is megabytes to find four lines.
-#
-# Prints nothing and returns 1 when it cannot look. The caller must not print
-# an absence for that — see the header.
-proven_lines() {
-	local run_id="$1" job_id log
-	job_id=$(mc_gh api "repos/$repo/actions/runs/$run_id/jobs" \
-		--jq '.jobs[] | select(.name == "Already proven") | .id' 2>/dev/null | head -1) || return 1
-	[ -n "$job_id" ] || return 1
-	log=$(mc_gh api "repos/$repo/actions/jobs/$job_id/logs" 2>/dev/null) || return 1
-	# grep, never `grep -q`, and never in a pipeline whose producer can be
-	# killed early: this file sets pipefail. A match that exits first turns
-	# SIGPIPE into the pipeline's status and reads as "no match".
-	printf '%s\n' "$log" | grep -F 'ci-proven-tree:' | sed 's/^.*ci-proven-tree: /       ci-proven-tree: /' || true
 }
 
 # --------------------------------------------------------------------------
@@ -150,16 +129,6 @@ while IFS=$'\t' read -r id created updated conclusion; do
 	mg_count=$((mg_count + 1))
 	mins=$(minutes_between "$created" "$updated")
 	printf '  merge_group   run %-12s %6s min  %s\n' "$id" "$mins" "$conclusion"
-	if lines=$(proven_lines "$id"); then
-		if [ -n "$lines" ]; then
-			printf '%s\n' "$lines"
-		else
-			echo "       the 'Already proven' job logged nothing about the tree."
-		fi
-	else
-		echo "       could not read the 'Already proven' job on run $id."
-		echo "       That is 'could not look', not 'it did not run'."
-	fi
 	mg_total=$(MC_T="$mg_total" MC_M="$mins" mc_py -c '
 import os, sys
 try:
@@ -197,6 +166,6 @@ else
 fi
 
 echo
-echo "  A merge group that ran the full suite over a tree the pull request had already"
-echo "  tested is the duplicate a CI cache keyed on the tree exists to remove. Read the"
-echo "  ci-proven-tree line above: HIT means it worked, and a MISS names its own reason."
+echo "  A merge group as long as the pull request's run paid for a full suite over a"
+echo "  tree the pull request may already have tested. That is the duplicate a CI cache"
+echo "  keyed on the tree exists to remove; if you run one, its own log says whether it hit."

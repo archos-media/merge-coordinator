@@ -6,6 +6,7 @@
 
   "$comment_requiredChecks": "The job in .github/workflows/test.yml that runs on every pull request.",
   "requiredChecks": ["offline suites"],
+  "ciWorkflow": "test.yml",
 
   "backbone": "serialized-claim",
 

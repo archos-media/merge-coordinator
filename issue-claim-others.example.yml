@@ -54,7 +54,7 @@ jobs:
     steps:
       # No ref: the default branch. Never the pull request's head here: this
       # job holds a write token, and a fork's code must not run with it.
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           sparse-checkout: |

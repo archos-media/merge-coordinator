@@ -6,6 +6,23 @@ here is `## [vN.N.N]`, the form this repository's own release guard looks for.
 The section under it is published as that tag's GitHub Release, and CI
 fails a pull request whose version has no section.
 
+## [v0.5.1]
+
+- **Fixed:** `config.example.json` and the adoption guide now include
+  `ciWorkflow`, the file name of the workflow that runs CI on pull requests.
+  `/merge-ready` and the report after a land both read it, and a config copied
+  from the example used to lack it. A new suite, `test-config-keys.sh`, fails
+  when a script requires a key the example leaves out.
+- **Changed:** the report after a land (`queue-cost.sh`) no longer reads a job
+  named "Already proven" for cache lines. That job belonged to one repository's
+  CI; everywhere else the report printed "could not read" for every merge
+  group. It still reports the minutes on the pull request and on the queue.
+- **Changed:** `actions/checkout` is pinned to v7.0.1 (Node 24) in this
+  repository's workflow and in both example workflows.
+- **Docs:** the adoption guide no longer says "here" about measurements taken on
+  another repository; the test loop in the README and CONTRIBUTING now exits
+  non-zero when a suite fails; small corrections in the skill and commands.
+
 ## [v0.5.0]
 
 The first public release, under the Apache License 2.0.

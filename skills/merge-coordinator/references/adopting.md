@@ -29,7 +29,7 @@ Updates do not arrive on their own for a marketplace like this one: run
 `register.sh`) do not. A repository that needs either carries a pinned copy:
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/vendor.sh" v0.5.0     # from inside the repository
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/vendor.sh" v0.5.1     # from inside the repository
 ```
 
 That copies the release into `tools/merge-coordinator/`, writes
@@ -81,6 +81,10 @@ Copy `config.example.json` to `.github/merge-coordinator.json` and edit it.
   memory: a typo here means the name is never found, and a name that is never
   found is treated as a failure, so a typo shows up as "this will never land"
   rather than as a silent pass. That direction is intended.
+- **`ciWorkflow`** — the file name of the workflow that runs CI on pull
+  requests (`ci.yml`, not its display name). `/merge-ready` reads its runs to
+  say where a pull request ahead of yours stands, and the report after a land
+  reads them to say what the land cost.
 - **`backbone`** — `github-merge-queue` only once the queue actually exists
   (see below). Setting it early is worse than leaving it: `gh pr merge --auto`
   against a repository with no queue merges as soon as the checks pass, which
@@ -200,8 +204,9 @@ Then, once the queue is carrying the merges:
 4. **A `push:` trigger on the default branch has become a duplicate.** The queue
    tested the exact tree the merge produces; the push run tests that same tree
    again and learns nothing. It does not cover the intermediate commits of a
-   batch either — it only ever sees the final head. Measured here: 192
-   CI-minutes in one day, about 30% of the total, for no information.
+   batch either — it only ever sees the final head. On the repository this
+   plugin was built for, that was 192 CI-minutes in one day, about 30% of the
+   total, for no information.
 
    Before dropping it, check that nothing *consumes* a green run on the default
    branch — a deploy keyed to a successful CI run, a badge, a scheduled job
@@ -211,7 +216,7 @@ Then, once the queue is carrying the merges:
 ## 5. Drafts, and the check that passes with nothing behind it
 
 A draft PR is registration, not a request to test anything, and testing every
-push to one is the largest avoidable cost here. Two changes turn it off:
+push to one is the largest avoidable cost. Two changes turn it off:
 
 ```yaml
 on:
@@ -237,22 +242,23 @@ the required check.
 **What that actually produces, measured rather than assumed.** A job that a
 job-level `if` skips still publishes a check run: conclusion `skipped`, status
 `completed`. Turning CI off for drafts does not make the checks disappear. On a
-draft here, all seven check runs are present and every one of them is `skipped`;
+draft in the repository this plugin was built for, all seven of its check runs
+are present and every one of them is `skipped`;
 `gh pr checks` prints `skipping`. The gain is not silence, it is that `skipped`
 is visibly not `success` — `land.sh` step 4 refuses it as "a check that is
 missing, running, cancelled or failed is not a pass", and so does anyone reading
 the pull request.
 
-**Branch protection blocks on it too, measured here rather than assumed.** With
-the required check `CI passed` reporting `skipped` on the head and the other
+**Branch protection blocks on it too, measured on that repository rather than
+assumed.** With its required check `CI passed` reporting `skipped` on the head and the other
 required check already green, the pull request read `mergeStateStatus=BLOCKED`;
 when that same check turned `success` with nothing else changed, it read `CLEAN`.
 The two non-required jobs still running at the first reading cannot account for
-it. So on this ruleset a skipped required check is not a pass.
+it. So on that ruleset a skipped required check is not a pass.
 
 That is the behaviour you want, and it is worth confirming on your own
 repository rather than inheriting the claim: the rule that a skipped check
-satisfies protection is widely repeated, and if it held here, a pull request
+satisfies protection is widely repeated, and if it held, a pull request
 marked ready would be mergeable in the window before its first real run
 registers. It is also why the condition must go on the aggregate job. Left off,
 that job reports `success` — a real pass, which every protection rule accepts
@@ -260,7 +266,7 @@ and no reader can distinguish from a tested one.
 
 ## 6. Check it works
 
-**Run `scripts/probe-live.sh` first.** The four `test-*.sh` suites are offline,
+**Run `scripts/probe-live.sh` first.** The `test-*.sh` suites are offline,
 and the stand-in `gh` does not implement `--jq` — so every value they assert on
 is one no filter ever selected. The probe runs the same helpers against your
 real repository with no stand-in, which is the only way those filters get

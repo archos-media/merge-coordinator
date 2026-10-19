@@ -25,7 +25,7 @@ Land pull request **$ARGUMENTS** through the merge coordinator.
 3. The script refuses rather than guesses. Read what it printed and act on it:
 
    - **stale head** — it prints the rebase commands. Run them in *your own
-     worktree*, never in the shared checkout, then re-run the script. For a PR
+     worktree*, never in a checkout another session is using, then re-run the script. For a PR
      touching no hotspot, `--update-branch` has GitHub do it.
    - **a check missing, running, cancelled or failed** — do not re-run the
      script hoping. Find out why. A run that ended in seconds with no steps is

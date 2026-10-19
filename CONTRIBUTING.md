@@ -30,7 +30,7 @@ Pull requests and reports that read as unreviewed AI output are closed.
   Git Bash.
 
   ```sh
-  for t in scripts/test-*.sh; do bash "$t" || echo "FAILED: $t"; done
+  f=0; for t in scripts/test-*.sh; do bash "$t" || { echo "FAILED: $t"; f=1; }; done; [ "$f" -eq 0 ]
   ```
 
 - **Raise the version.** Every change to a file outside the top-level
