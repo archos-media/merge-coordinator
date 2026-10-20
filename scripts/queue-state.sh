@@ -265,8 +265,8 @@ if [ "$backbone" = "serialized-claim" ]; then
 	echo "  CONFLICT means git cannot merge the branch, so it runs no CI and its"
 	echo "  CHECKS read stale: rebase by hand."
 	if [ -n "$unread" ]; then
-		echo "  Could not tell whether$unread conflicts: GitHub had not worked it out."
-		echo "  Re-run this in a few seconds."
+		echo "  Conflict state not read for:$unread. GitHub had not computed it yet, or"
+		echo "  the read failed. Re-run this in a few seconds; if it persists, check gh."
 	fi
 else
 	echo

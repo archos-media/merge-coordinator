@@ -219,8 +219,9 @@ printf '3\n' >"$FIX/behind0.txt"
 printf 'api repos/%s/pulls/10 --jq .mergeable\tFAIL\n' "$REPO" >"$FIX/routes.new"
 cat "$FIX/routes" >>"$FIX/routes.new"
 mv "$FIX/routes.new" "$FIX/routes"
+# A failed read is not blamed on GitHub being slow: the footer allows for both.
 run "an unreadable mergeable keeps behind N, and the footer names it" "behind 3" \
-	"Could not tell whether #10 conflicts"
+	"Conflict state not read for: #10." "the read failed"
 run_absent "an unreadable mergeable is not reported as a conflict" "CONFLICT"
 
 # Right after a landing GitHub answers null until it has recomputed. The
@@ -243,7 +244,7 @@ printf 'api repos/%s/pulls/10 --jq .mergeable\tmergeable-null.txt\n' "$REPO" >"$
 cat "$FIX/routes" >>"$FIX/routes.new"
 mv "$FIX/routes.new" "$FIX/routes"
 run "a mergeable never computed keeps behind N, and the footer names it" "behind 3" \
-	"Could not tell whether #10 conflicts"
+	"Conflict state not read for: #10."
 
 # A clean answer is not reported as unanswered.
 reset_fixture
@@ -252,11 +253,12 @@ printf 'true\n' >"$FIX/mergeable.txt"
 printf 'api repos/%s/pulls/10 --jq .mergeable\tmergeable.txt\n' "$REPO" >"$FIX/routes.new"
 cat "$FIX/routes" >>"$FIX/routes.new"
 mv "$FIX/routes.new" "$FIX/routes"
+# || true: a crash is reported below as a missing row, not by aborting the suite.
 out=$(MC_CONFIG="$WORK/config.json" MC_GH=./lib/fixture-gh.sh MC_FIXTURES="$FIX" \
 	MC_WORKTREE_LIST="$FIX/worktrees" MC_PID_PROBE="$FIX/probe.sh" \
-	bash "$SCRIPT" 2>&1)
+	bash "$SCRIPT" 2>&1) || true
 case "$out" in
-*"behind 3"*"Could not tell"*)
+*"behind 3"*"Conflict state not read"*)
 	echo "FAIL: a clean answer was reported as unanswered"
 	fail=$((fail + 1))
 	;;
