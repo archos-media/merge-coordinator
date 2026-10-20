@@ -155,8 +155,57 @@ run "a fresh green PR reads ready, current, ok" "#10" "ready" "current" "ok" "Cl
 # --------------------------------------------------------------------------
 reset_fixture
 printf '3\n' >"$FIX/behind0.txt"
+printf 'true\n' >"$FIX/mergeable.txt"
+printf 'api repos/%s/pulls/10 --jq .mergeable\tmergeable.txt\n' "$REPO" >"$FIX/routes.new"
+cat "$FIX/routes" >>"$FIX/routes.new"
+mv "$FIX/routes.new" "$FIX/routes"
 run "a PR behind main says so" "behind 3"
 run_absent "a PR behind main does not read as current" "current"
+
+# A branch that is behind AND conflicts runs no CI, so its old green stays on
+# the page. The column must say CONFLICT, not "behind 3" with "ok" beside it.
+printf 'false\n' >"$FIX/mergeable.txt"
+run "a conflict is explained in the footer" "rebase by hand"
+run_absent "a PR behind main that conflicts is not called merely behind" "behind 3"
+# The row itself, not the page: the footer also says CONFLICT.
+out=$(MC_CONFIG="$WORK/config.json" MC_GH=./lib/fixture-gh.sh MC_FIXTURES="$FIX" \
+	MC_WORKTREE_LIST="$FIX/worktrees" MC_PID_PROBE="$FIX/probe.sh" \
+	bash "$SCRIPT" 2>&1 | grep '^  #10 ' || true)
+case "$out" in
+*" CONFLICT "*)
+	echo "ok: a PR behind main that conflicts says CONFLICT in its row"
+	pass=$((pass + 1))
+	;;
+*)
+	echo "FAIL: a PR behind main that conflicts did not say CONFLICT in its row"
+	printf '%s\n' "$out" | sed 's/^/    /'
+	fail=$((fail + 1))
+	;;
+esac
+
+# Could not ask: the row keeps "behind 3", which already stops a landing, and
+# is never upgraded to anything that reads as fine.
+reset_fixture
+printf '3\n' >"$FIX/behind0.txt"
+printf 'api repos/%s/pulls/10 --jq .mergeable\tFAIL\n' "$REPO" >"$FIX/routes.new"
+cat "$FIX/routes" >>"$FIX/routes.new"
+mv "$FIX/routes.new" "$FIX/routes"
+run "an unreadable mergeable keeps behind N" "behind 3"
+run_absent "an unreadable mergeable is not reported as a conflict" "CONFLICT"
+
+# A current branch cannot conflict, so the report does not spend a call asking.
+reset_fixture
+run "a current PR still reads current" "current"
+case "$(cat "$FIX/calls.log")" in
+*".mergeable"*)
+	echo "FAIL: a current PR was asked whether it merges"
+	fail=$((fail + 1))
+	;;
+*)
+	echo "ok: a current PR is not asked whether it merges"
+	pass=$((pass + 1))
+	;;
+esac
 
 # --------------------------------------------------------------------------
 # 3. A comparison that could not be made is UNKNOWN, never current. Not looking

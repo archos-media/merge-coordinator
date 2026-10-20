@@ -9,7 +9,8 @@
 # is false (GitHub's default), GitHub will happily report a PR as mergeable when
 # its green run was produced against a main that no longer exists. "behind N"
 # means exactly that: N commits have landed since this PR was tested, and its
-# green says nothing about the tree it would produce.
+# green says nothing about the tree it would produce. A branch that is behind
+# and also conflicts reads CONFLICT instead.
 #
 # On github-merge-queue it is MERGE. The queue rebuilds and retests against the
 # real base, so "behind N" is not a problem and reporting it as one is how every
@@ -159,6 +160,14 @@ while IFS=$'\t' read -r number title draft head labels; do
 			freshness="UNKNOWN"
 		else
 			freshness="behind $behind"
+			# A branch that is behind may also conflict, and then GitHub runs
+			# no CI on it, so its last green stays on the page. "behind N"
+			# reads as "rebase and re-run"; CONFLICT says the rebase needs
+			# hands. A branch that is current cannot conflict, so only this
+			# case asks. UNKNOWN keeps "behind N": it already stops a landing.
+			if [ "$(mc_mergeable "$number")" = "CONFLICTING" ]; then
+				freshness="CONFLICT"
+			fi
 		fi
 	fi
 
@@ -235,6 +244,7 @@ if [ "$backbone" = "serialized-claim" ]; then
 	echo "  No merge queue on this repository yet, so 'current' plus 'ok' above is"
 	echo "  the whole guarantee, and it is only true at the moment it was read."
 	echo "  Re-run this immediately before landing; land.sh does that itself."
+	echo "  CONFLICT means git cannot merge the branch, so it runs no CI: rebase by hand."
 else
 	echo
 	echo "  The merge queue tests each pull request against $base plus everything ahead"

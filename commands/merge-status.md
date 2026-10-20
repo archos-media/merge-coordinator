@@ -20,7 +20,7 @@ Report the merge state of this repository.
    what that PR blocks.
 
 3. Report both to the user as one answer: what may land now, what is waiting and
-   on what, and anything that is stale or red. Lead with the recommendation —
+   on what, and anything that is stale, conflicting or red. Lead with the recommendation —
    which PR to land next and why — rather than with the table. A Dependabot
    pull request listed under the table as waiting stops every other ready and
    land until it lands or closes, or the user says later (`--skip-deps`, one

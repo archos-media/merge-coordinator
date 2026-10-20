@@ -6,6 +6,13 @@ here is `## [vN.N.N]`, the form this repository's own release guard looks for.
 The section under it is published as that tag's GitHub Release, and CI
 fails a pull request whose version has no section.
 
+## [v0.5.4]
+
+- **Fixed:** without a merge queue, `/merge-status` showed a pull request that
+  was behind and conflicted with the base as "behind N", with its old green
+  beside it. A conflicting branch runs no CI, so that green meant nothing. The
+  column now reads `CONFLICT`, and the footer says it needs a rebase by hand.
+
 ## [v0.5.3]
 
 - **Docs:** the README opens with a short demo: two pull requests write the
