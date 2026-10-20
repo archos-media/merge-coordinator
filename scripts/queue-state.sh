@@ -52,6 +52,8 @@ if [ -z "$rows" ]; then
 fi
 
 holder=""
+# Pull requests behind the base whose conflict state GitHub did not give.
+unread=""
 
 # Two columns about people, not commits.
 #
@@ -164,10 +166,17 @@ while IFS=$'\t' read -r number title draft head labels; do
 			# no CI on it, so its last green stays on the page. "behind N"
 			# reads as "rebase and re-run"; CONFLICT says the rebase needs
 			# hands. A branch that is current cannot conflict, so only this
-			# case asks. UNKNOWN keeps "behind N": it already stops a landing.
-			if [ "$(mc_mergeable "$number")" = "CONFLICTING" ]; then
-				freshness="CONFLICT"
-			fi
+			# case asks.
+			#
+			# Settled, with one retry: GitHub resets the answer to null when
+			# the base moves, and right after a landing is when this report
+			# is run. Still UNKNOWN keeps "behind N", which already stops a
+			# landing, and the footer names the pull request.
+			case "$(mc_mergeable_settled "$number" 2 2>/dev/null)" in
+			CONFLICTING) freshness="CONFLICT" ;;
+			CLEAN) ;;
+			*) unread="$unread #$number" ;;
+			esac
 		fi
 	fi
 
@@ -245,6 +254,10 @@ if [ "$backbone" = "serialized-claim" ]; then
 	echo "  the whole guarantee, and it is only true at the moment it was read."
 	echo "  Re-run this immediately before landing; land.sh does that itself."
 	echo "  CONFLICT means git cannot merge the branch, so it runs no CI: rebase by hand."
+	if [ -n "$unread" ]; then
+		echo "  Could not tell whether$unread conflicts: GitHub had not worked it out."
+		echo "  Re-run this in a few seconds."
+	fi
 else
 	echo
 	echo "  The merge queue tests each pull request against $base plus everything ahead"
