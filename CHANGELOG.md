@@ -12,6 +12,10 @@ fails a pull request whose version has no section.
   was behind and conflicted with the base as "behind N", with its old green
   beside it. A conflicting branch runs no CI, so that green meant nothing. The
   column now reads `CONFLICT`, and the footer says it needs a rebase by hand.
+  If GitHub has not yet worked out whether it conflicts, the report asks once
+  more, then names the pull request in the footer.
+- **Changed:** on a `CONFLICT` row, with or without a merge queue, CHECKS
+  reads `stale` instead of the last result.
 
 ## [v0.5.3]
 

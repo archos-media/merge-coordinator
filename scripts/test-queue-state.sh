@@ -149,7 +149,7 @@ run_absent() {
 # The row for one pull request, so a value in another row or the footer cannot
 # satisfy an assertion about this one.
 row_of() {
-	MC_CONFIG="$WORK/config.json" MC_GH=./lib/fixture-gh.sh MC_FIXTURES="$FIX" \
+	MC_CONFIG="${MC_TEST_CONFIG:-$WORK/config.json}" MC_GH=./lib/fixture-gh.sh MC_FIXTURES="$FIX" \
 		MC_WORKTREE_LIST="$FIX/worktrees" MC_PID_PROBE="$FIX/probe.sh" \
 		bash "$SCRIPT" 2>&1 | grep "^  #$1 " || true
 }
@@ -207,6 +207,10 @@ run "a conflict is explained in the footer" "rebase by hand"
 run_absent "a PR behind main that conflicts is not called merely behind" "behind 3"
 # The row itself, not the page: the footer also says CONFLICT.
 expect_row "a PR behind main that conflicts says CONFLICT in its row" 10 " CONFLICT "
+# And its old green is not shown as one: the checks tested a head that cannot
+# merge. The fixture's checks pass, so "ok" is what a missed case would print.
+expect_row "a conflicting PR's checks read stale" 10 " stale "
+expect_row_absent "a conflicting PR's old green is not shown as ok" 10 " ok "
 
 # Could not ask: the row keeps "behind 3", which already stops a landing, and
 # is never upgraded to anything that reads as fine.
@@ -371,6 +375,8 @@ MC_TEST_CONFIG="$WORK/config-queue.json" \
 	run "a queue reports MERGE, not FRESHNESS" "MERGE" "clean" "merge queue tests each pull request"
 MC_TEST_CONFIG="$WORK/config-queue.json" \
 	run "a queue does not report a branch as behind" "#10"
+MC_TEST_CONFIG="$WORK/config-queue.json" \
+	expect_row "a clean PR's checks still read ok on a queue" 10 " ok "
 
 reset_fixture
 printf 'true\n' >"$FIX/mergeable-clean.txt"
@@ -380,6 +386,8 @@ cat "$FIX/routes" >>"$FIX/routes.new"
 mv "$FIX/routes.new" "$FIX/routes"
 MC_TEST_CONFIG="$WORK/config-queue.json" \
 	run "a conflicting PR is called out on a queue" "CONFLICT"
+MC_TEST_CONFIG="$WORK/config-queue.json" \
+	expect_row "a conflicting PR's checks read stale on a queue" 10 " stale "
 
 # And the serialized wording must NOT appear on a queue — that footer tells a
 # session the freshness column is the whole guarantee, which it is not here.
