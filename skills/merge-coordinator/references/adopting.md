@@ -29,7 +29,7 @@ Updates do not arrive on their own for a marketplace like this one: run
 `register.sh`) do not. A repository that needs either carries a pinned copy:
 
 ```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/vendor.sh" v0.5.2     # from inside the repository
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/vendor.sh" v0.5.3     # from inside the repository
 ```
 
 That copies the release into `tools/merge-coordinator/`, writes

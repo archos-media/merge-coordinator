@@ -6,6 +6,12 @@ here is `## [vN.N.N]`, the form this repository's own release guard looks for.
 The section under it is published as that tag's GitHub Release, and CI
 fails a pull request whose version has no section.
 
+## [v0.5.3]
+
+- **Docs:** the README opens with a short demo: two pull requests write the
+  same changelog block, one lands as a release, and the plugin stops the other
+  until its entry is re-added by hand.
+
 ## [v0.5.2]
 
 - **Tests:** all three usage-error cases for `claim-gate.sh --reconcile` in

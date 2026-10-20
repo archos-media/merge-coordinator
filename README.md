@@ -8,6 +8,10 @@ no pull request lands on a green check that never saw the `main` it is merging
 into, works out which pull requests may land in parallel, and tells the
 pull requests a landing has broken, with the reason.
 
+![Two pull requests write the same changelog block. The plugin sees the overlap, refuses to mark the second ready while the first's CI runs, lands the first and tells the second at once, and its hook refuses a bare merge of the second, which is then rebased and its entry re-added by hand.](https://github.com/archos-media/merge-coordinator/releases/download/v0.5.2/demo.gif)
+
+<sub>Recorded from this repository's own pull requests #4 and #5. Hosted on the [v0.5.2 release](https://github.com/archos-media/merge-coordinator/releases/tag/v0.5.2), so installs and pinned copies do not carry it.</sub>
+
 [The problem](#the-problem) · [What it does](#what-it-does) · [Numbers](#in-numbers) ·
 [Who it is for](#who-it-is-for) · [Compared with](#how-it-compares) ·
 [Install](#install) · [FAQ](#faq)
