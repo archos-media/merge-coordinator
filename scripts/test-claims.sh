@@ -608,8 +608,10 @@ expect "--except with no number is refused" 1 "--except needs a pull request num
 expect_absent "a usage error re-runs nothing" "run rerun"
 gate --reconcile --except abc
 expect "--except with no number (abc) is refused" 1 "--except needs a pull request number"
+expect_absent "a usage error (abc) re-runs nothing" "run rerun"
 gate --reconcile 12
 expect "--reconcile with a number is refused" 1 "takes no pull request number"
+expect_absent "a usage error (a number) re-runs nothing" "run rerun"
 
 # After a close: every labelled one, still refused or not, so its comment
 # names the holder it has now.
