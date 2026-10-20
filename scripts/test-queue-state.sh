@@ -33,6 +33,8 @@ fail=0
 
 REPO=example/repo
 FIX="$WORK/fix"
+# The mergeable retry waits between reads; the fixtures answer at once.
+export MC_MERGEABLE_SLEEP=0
 
 cat >"$WORK/config.json" <<'JSON'
 {
@@ -144,6 +146,42 @@ run_absent() {
 	pass=$((pass + 1))
 }
 
+# The row for one pull request, so a value in another row or the footer cannot
+# satisfy an assertion about this one.
+row_of() {
+	MC_CONFIG="${MC_TEST_CONFIG:-$WORK/config.json}" MC_GH=./lib/fixture-gh.sh MC_FIXTURES="$FIX" \
+		MC_WORKTREE_LIST="$FIX/worktrees" MC_PID_PROBE="$FIX/probe.sh" \
+		bash "$SCRIPT" 2>&1 | grep "^  #$1 " || true
+}
+
+# expect_row <name> <pr> <substring>
+expect_row() {
+	local r
+	r=$(row_of "$2")
+	if contains "$r" "$3"; then
+		echo "ok: $1"
+		pass=$((pass + 1))
+	else
+		echo "FAIL: $1 — row #$2 did not contain: $3"
+		printf '    %s\n' "$r"
+		fail=$((fail + 1))
+	fi
+}
+
+# expect_row_absent <name> <pr> <substring>
+expect_row_absent() {
+	local r
+	r=$(row_of "$2")
+	if [ -n "$r" ] && ! contains "$r" "$3"; then
+		echo "ok: $1"
+		pass=$((pass + 1))
+	else
+		echo "FAIL: $1 — row #$2 is missing, or contained: $3"
+		printf '    %s\n' "$r"
+		fail=$((fail + 1))
+	fi
+}
+
 # --------------------------------------------------------------------------
 # 1. The ordinary case: open, current, green, claim free.
 # --------------------------------------------------------------------------
@@ -155,8 +193,99 @@ run "a fresh green PR reads ready, current, ok" "#10" "ready" "current" "ok" "Cl
 # --------------------------------------------------------------------------
 reset_fixture
 printf '3\n' >"$FIX/behind0.txt"
+printf 'true\n' >"$FIX/mergeable.txt"
+printf 'api repos/%s/pulls/10 --jq .mergeable\tmergeable.txt\n' "$REPO" >"$FIX/routes.new"
+cat "$FIX/routes" >>"$FIX/routes.new"
+mv "$FIX/routes.new" "$FIX/routes"
 run "a PR behind main says so" "behind 3"
 run_absent "a PR behind main does not read as current" "current"
+
+# A branch that is behind AND conflicts runs no CI, so its old green stays on
+# the page. The column must say CONFLICT, not "behind 3" with "ok" beside it.
+printf 'false\n' >"$FIX/mergeable.txt"
+run "a conflict is explained in the footer" "rebase by hand"
+run_absent "a PR behind main that conflicts is not called merely behind" "behind 3"
+# The row itself, not the page: the footer also says CONFLICT.
+expect_row "a PR behind main that conflicts says CONFLICT in its row" 10 " CONFLICT "
+# And its old green is not shown as one: the checks tested a head that cannot
+# merge. The fixture's checks pass, so "ok" is what a missed case would print.
+expect_row "a conflicting PR's checks read stale" 10 " stale "
+expect_row_absent "a conflicting PR's old green is not shown as ok" 10 " ok "
+
+# Could not ask: the row keeps "behind 3", which already stops a landing, and
+# is never upgraded to anything that reads as fine.
+reset_fixture
+printf '3\n' >"$FIX/behind0.txt"
+printf 'api repos/%s/pulls/10 --jq .mergeable\tFAIL\n' "$REPO" >"$FIX/routes.new"
+cat "$FIX/routes" >>"$FIX/routes.new"
+mv "$FIX/routes.new" "$FIX/routes"
+# A failed read is not blamed on GitHub being slow: the footer allows for both.
+run "an unreadable mergeable keeps behind N, and the footer names it" "behind 3" \
+	"Conflict state not read for: #10." "the read failed"
+run_absent "an unreadable mergeable is not reported as a conflict" "CONFLICT"
+
+# Right after a landing GitHub answers null until it has recomputed. The
+# report asks again, so the first run after a landing still finds the conflict.
+reset_fixture
+printf '3\n' >"$FIX/behind0.txt"
+printf 'null\n' >"$FIX/mergeable-null.txt"
+printf 'false\n' >"$FIX/mergeable.txt"
+printf 'api repos/%s/pulls/10 --jq .mergeable\tSEQ:mergeable-null.txt,mergeable.txt\n' "$REPO" >"$FIX/routes.new"
+cat "$FIX/routes" >>"$FIX/routes.new"
+mv "$FIX/routes.new" "$FIX/routes"
+expect_row "a conflict GitHub had not computed yet is found on the retry" 10 " CONFLICT "
+
+# Never computed: "behind 3" stays, and the footer says the question went
+# unanswered rather than letting the row pass for a plain behind.
+reset_fixture
+printf '3\n' >"$FIX/behind0.txt"
+printf 'null\n' >"$FIX/mergeable-null.txt"
+printf 'api repos/%s/pulls/10 --jq .mergeable\tmergeable-null.txt\n' "$REPO" >"$FIX/routes.new"
+cat "$FIX/routes" >>"$FIX/routes.new"
+mv "$FIX/routes.new" "$FIX/routes"
+run "a mergeable never computed keeps behind N, and the footer names it" "behind 3" \
+	"Conflict state not read for: #10."
+
+# A clean answer is not reported as unanswered.
+reset_fixture
+printf '3\n' >"$FIX/behind0.txt"
+printf 'true\n' >"$FIX/mergeable.txt"
+printf 'api repos/%s/pulls/10 --jq .mergeable\tmergeable.txt\n' "$REPO" >"$FIX/routes.new"
+cat "$FIX/routes" >>"$FIX/routes.new"
+mv "$FIX/routes.new" "$FIX/routes"
+# || true: a crash is reported below as a missing row, not by aborting the suite.
+out=$(MC_CONFIG="$WORK/config.json" MC_GH=./lib/fixture-gh.sh MC_FIXTURES="$FIX" \
+	MC_WORKTREE_LIST="$FIX/worktrees" MC_PID_PROBE="$FIX/probe.sh" \
+	bash "$SCRIPT" 2>&1) || true
+case "$out" in
+*"behind 3"*"Conflict state not read"*)
+	echo "FAIL: a clean answer was reported as unanswered"
+	fail=$((fail + 1))
+	;;
+*"behind 3"*)
+	echo "ok: a clean answer is not reported as unanswered"
+	pass=$((pass + 1))
+	;;
+*)
+	echo "FAIL: a clean behind PR did not read behind 3"
+	printf '%s\n' "$out" | sed 's/^/    /'
+	fail=$((fail + 1))
+	;;
+esac
+
+# A current branch cannot conflict, so the report does not spend a call asking.
+reset_fixture
+run "a current PR still reads current" "current"
+case "$(cat "$FIX/calls.log")" in
+*".mergeable"*)
+	echo "FAIL: a current PR was asked whether it merges"
+	fail=$((fail + 1))
+	;;
+*)
+	echo "ok: a current PR is not asked whether it merges"
+	pass=$((pass + 1))
+	;;
+esac
 
 # --------------------------------------------------------------------------
 # 3. A comparison that could not be made is UNKNOWN, never current. Not looking
@@ -248,6 +377,8 @@ MC_TEST_CONFIG="$WORK/config-queue.json" \
 	run "a queue reports MERGE, not FRESHNESS" "MERGE" "clean" "merge queue tests each pull request"
 MC_TEST_CONFIG="$WORK/config-queue.json" \
 	run "a queue does not report a branch as behind" "#10"
+MC_TEST_CONFIG="$WORK/config-queue.json" \
+	expect_row "a clean PR's checks still read ok on a queue" 10 " ok "
 
 reset_fixture
 printf 'true\n' >"$FIX/mergeable-clean.txt"
@@ -257,6 +388,8 @@ cat "$FIX/routes" >>"$FIX/routes.new"
 mv "$FIX/routes.new" "$FIX/routes"
 MC_TEST_CONFIG="$WORK/config-queue.json" \
 	run "a conflicting PR is called out on a queue" "CONFLICT"
+MC_TEST_CONFIG="$WORK/config-queue.json" \
+	expect_row "a conflicting PR's checks read stale on a queue" 10 " stale "
 
 # And the serialized wording must NOT appear on a queue — that footer tells a
 # session the freshness column is the whole guarantee, which it is not here.
@@ -284,42 +417,6 @@ esac
 BLOCK5='<!-- merge-coordinator:footprint
 issue: 5
 -->'
-
-# The row for one pull request, so a value in another row or the footer cannot
-# satisfy an assertion about this one.
-row_of() {
-	MC_CONFIG="$WORK/config.json" MC_GH=./lib/fixture-gh.sh MC_FIXTURES="$FIX" \
-		MC_WORKTREE_LIST="$FIX/worktrees" MC_PID_PROBE="$FIX/probe.sh" \
-		bash "$SCRIPT" 2>&1 | grep "^  #$1 " || true
-}
-
-# expect_row <name> <pr> <substring>
-expect_row() {
-	local r
-	r=$(row_of "$2")
-	if contains "$r" "$3"; then
-		echo "ok: $1"
-		pass=$((pass + 1))
-	else
-		echo "FAIL: $1 — row #$2 did not contain: $3"
-		printf '    %s\n' "$r"
-		fail=$((fail + 1))
-	fi
-}
-
-# expect_row_absent <name> <pr> <substring>
-expect_row_absent() {
-	local r
-	r=$(row_of "$2")
-	if [ -n "$r" ] && ! contains "$r" "$3"; then
-		echo "ok: $1"
-		pass=$((pass + 1))
-	else
-		echo "FAIL: $1 — row #$2 is missing, or contained: $3"
-		printf '    %s\n' "$r"
-		fail=$((fail + 1))
-	fi
-}
 
 reset_fixture
 expect_row "a PR that claims nothing reads - in ISSUE" 10 " -  "

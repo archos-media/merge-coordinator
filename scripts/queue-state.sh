@@ -9,7 +9,8 @@
 # is false (GitHub's default), GitHub will happily report a PR as mergeable when
 # its green run was produced against a main that no longer exists. "behind N"
 # means exactly that: N commits have landed since this PR was tested, and its
-# green says nothing about the tree it would produce.
+# green says nothing about the tree it would produce. A branch that is behind
+# and also conflicts reads CONFLICT instead.
 #
 # On github-merge-queue it is MERGE. The queue rebuilds and retests against the
 # real base, so "behind N" is not a problem and reporting it as one is how every
@@ -19,6 +20,10 @@
 # The check column is read per required name on the head commit, through
 # mc_require_checks — so a cancelled run, a run on an older commit, and a check
 # that never appeared all read as "not passing" rather than as silence.
+#
+# A CONFLICT row reads "stale" there instead: GitHub runs no CI on a branch it
+# cannot merge, so its last result, green or not, tested a head that will not
+# land as it is.
 #
 # The one thing that is NOT reported as a problem there is a draft whose checks
 # all skipped: drafts run no CI here, so that is the design working. It reads
@@ -51,6 +56,8 @@ if [ -z "$rows" ]; then
 fi
 
 holder=""
+# Pull requests behind the base whose conflict state GitHub did not give.
+unread=""
 
 # Two columns about people, not commits.
 #
@@ -159,10 +166,30 @@ while IFS=$'\t' read -r number title draft head labels; do
 			freshness="UNKNOWN"
 		else
 			freshness="behind $behind"
+			# A branch that is behind may also conflict, and then GitHub runs
+			# no CI on it, so its last green stays on the page. "behind N"
+			# reads as "rebase and re-run"; CONFLICT says the rebase needs
+			# hands. A branch that is current cannot conflict, so only this
+			# case asks.
+			#
+			# Settled, with one retry: GitHub resets the answer to null when
+			# the base moves, and right after a landing is when this report
+			# is run. Still UNKNOWN keeps "behind N", which already stops a
+			# landing, and the footer names the pull request.
+			case "$(mc_mergeable_settled "$number" 2 2>/dev/null)" in
+			CONFLICTING) freshness="CONFLICT" ;;
+			CLEAN) ;;
+			*) unread="$unread #$number" ;;
+			esac
 		fi
 	fi
 
-	if checks=$(mc_require_checks "$sha" 2>/dev/null); then
+	if [ "$freshness" = "CONFLICT" ]; then
+		# GitHub runs no CI on a branch it cannot merge, so whatever the
+		# checks say tested a head that will not land as it is. An "ok"
+		# here is the old green the CONFLICT column exists to call out.
+		verdict="stale"
+	elif checks=$(mc_require_checks "$sha" 2>/dev/null); then
 		verdict="ok"
 	else
 		# The first non-ok line names the worst thing found. The full text is
@@ -235,11 +262,18 @@ if [ "$backbone" = "serialized-claim" ]; then
 	echo "  No merge queue on this repository yet, so 'current' plus 'ok' above is"
 	echo "  the whole guarantee, and it is only true at the moment it was read."
 	echo "  Re-run this immediately before landing; land.sh does that itself."
+	echo "  CONFLICT means git cannot merge the branch, so it runs no CI and its"
+	echo "  CHECKS read stale: rebase by hand."
+	if [ -n "$unread" ]; then
+		echo "  Conflict state not read for:$unread. GitHub had not computed it yet, or"
+		echo "  the read failed. Re-run this in a few seconds; if it persists, check gh."
+	fi
 else
 	echo
 	echo "  The merge queue tests each pull request against $base plus everything ahead"
 	echo "  of it, so a branch being behind is not a problem and does not need a rebase."
 	echo "  CONFLICT is the one that does: the queue cannot merge what git will not."
+	echo "  Its CHECKS read stale, because a branch git cannot merge runs no CI."
 fi
 
 echo

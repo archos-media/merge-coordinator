@@ -1,7 +1,7 @@
 {
   "name": "merge-coordinator",
   "description": "Orders concurrent pull requests so that landing one never silently invalidates another session's green CI. Registers what is in flight, works out what may land in parallel, runs an idempotent landing sequence, and tells every overlapping PR the moment it goes stale.",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "license": "Apache-2.0",
   "repository": "https://github.com/archos-media/merge-coordinator",
   "homepage": "https://github.com/archos-media/merge-coordinator#readme",
