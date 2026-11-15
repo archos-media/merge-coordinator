@@ -4,8 +4,8 @@
   "repo": "archos-media/merge-coordinator",
   "defaultBranch": "main",
 
-  "$comment_requiredChecks": "The job in .github/workflows/test.yml that runs on every pull request.",
-  "requiredChecks": ["offline suites"],
+  "$comment_requiredChecks": "The jobs in .github/workflows/test.yml that run on every pull request. CI passed waits on the others; offline suites stays while the branch rules still name it.",
+  "requiredChecks": ["offline suites", "CI passed"],
   "ciWorkflow": "test.yml",
 
   "backbone": "serialized-claim",

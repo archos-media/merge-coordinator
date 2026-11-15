@@ -149,6 +149,33 @@ jobs:
           echo "tag $GITHUB_REF_NAME, plugin.json $declared"
           [ "$declared" = "$GITHUB_REF_NAME" ]
 
+  # The one check a ruleset requires: it passes only when every job it waits on
+  # succeeded, so adding a job means adding it to `needs` here, and the ruleset
+  # never changes. It runs `if: always()`: GitHub counts a skipped required
+  # check as a pass, and without it this job would skip when a job it waits on
+  # fails. Every job here also runs on drafts, so a draft's result is a real one.
+  ci-passed:
+    name: CI passed
+    needs: [suites]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job ran and passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+          needs = json.loads(os.environ["NEEDS"])
+          if not needs:
+              sys.exit("no jobs in needs")
+          bad = {k: v["result"] for k, v in needs.items() if v["result"] != "success"}
+          for k, r in bad.items():
+              print(f"FAIL  {k}: {r}")
+          sys.exit(1 if bad else 0)
+          EOF
+
   # Every push to main: check no plugin file changed since the commit that set
   # the version, then tag that commit v<version> if it is not tagged yet, so
   # the copies other repositories pin (vendor.sh <tag>) can reach it. The tag
@@ -156,10 +183,11 @@ jobs:
   # pushed with this job's token starts no workflow run, so the tag check
   # above covers only tags pushed by hand. scripts/release-tag.sh has the
   # rules and test-release-tag.sh the cases. Then the tag's GitHub Release,
-  # its notes the version's CHANGELOG section (scripts/release-publish.sh).
+  # its notes the version's CHANGELOG section (scripts/release-publish.sh). It
+  # waits on CI passed, so a release is tagged only when every check passed.
   release:
     name: tag the release
-    needs: suites
+    needs: ci-passed
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
