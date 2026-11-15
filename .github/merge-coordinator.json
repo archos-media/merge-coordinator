@@ -4,7 +4,7 @@
   "repo": "archos-media/merge-coordinator",
   "defaultBranch": "main",
 
-  "$comment_requiredChecks": "The one job the branch rules require: CI passed, in .github/workflows/test.yml, which waits on every other job there.",
+  "$comment_requiredChecks": "The one job the branch rules require: CI passed, in .github/workflows/test.yml, which waits on offline suites, the other job that runs on every pull request.",
   "requiredChecks": ["CI passed"],
   "ciWorkflow": "test.yml",
 
