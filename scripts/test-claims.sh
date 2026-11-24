@@ -152,7 +152,10 @@ check_name worktree-issue-31-note 31
 check_name feature/issue_7 7
 check_name fix-issue7 7
 check_name Issue-3 3
-check_name plan-1467-issue-12 12
+check_name plan-900-issue-12 12
+check_name fix-issue07 ""
+check_name fix-issue123456 ""
+check_name fix-issue0 ""
 check_name fix-nav-12 ""
 check_name nav-phase-2 ""
 check_name upgrade-node-20 ""

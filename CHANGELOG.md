@@ -11,10 +11,10 @@ fails a pull request whose version has no section.
 - **Added:** a branch or worktree name can mark its issue number with the
   word `issue`: `fix-issue-12-nav`, `issue_7` and `issue12` claim #12, #7 and
   #12. A marked number may have 1 to 5 digits, so a repository whose issues are
-  still below #100 no longer needs `--issue` on every registration. It wins
-  over a bare number in the same name. Bare numbers keep the old rule (one
-  segment of 3 to 5 digits), so `nav-phase-2` and `upgrade-node-20` still give
-  nothing.
+  still below #100 no longer needs `--issue` when its branch names mark the
+  number this way. It wins over a bare number in the same name. Bare numbers
+  keep the old rule (one segment of 3 to 5 digits), so `nav-phase-2` and
+  `upgrade-node-20` still give nothing.
 
 ## [v0.5.4]
 
