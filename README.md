@@ -393,7 +393,8 @@ with later instead of just deleted.
 <summary><b>What are issue claims?</b></summary>
 
 A pull request claims an issue with an `issue: N` line in its registration, or
-with GitHub's own `Closes #N`. When two open pull requests claim the same issue,
+with GitHub's own `Closes #N`. Registration reads the number from a branch
+named `issue-12-...` (or from `--issue 12`). When two open pull requests claim the same issue,
 the older one holds it. A hook refuses a new worktree for an issue that is
 already claimed, so the work isn't done twice. A repository can also add a CI
 check that fails the duplicate: copy `issue-claim.example.yml` and

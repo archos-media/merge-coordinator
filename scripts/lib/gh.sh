@@ -675,29 +675,70 @@ mc_dup_label() {
 # mc_issue_from_name <name> — the issue number that a worktree or branch name
 # carries, or nothing.
 #
-# The name is split at "-", "/" and "_". A segment of 3 to 5 digits is a
-# number. Exactly one number is an answer. None, or more than one, is no answer,
-# because a guess between two numbers is a claim on an issue nobody chose.
+# The name is split at "-", "/" and "_".
 #
-# Measured before this was built: in the 199 pull requests since registration
-# began that cite an issue, this gave the right number for 176 and a wrong one
-# for 1 (a branch named for one issue whose pull request did another).
+# A number marked as an issue wins: "issue" followed by a number of 1 to 5
+# digits, as its own segment ("fix-issue-12-nav", "issue_7") or joined to the
+# word ("issue12"). The word says what the number is, so a small number is safe
+# to claim here and nowhere else: "nav-phase-2" and "upgrade-node-20" give
+# nothing. A leading zero ("issue-07") is no number. Exactly one marked number
+# is an answer; two are no answer.
+#
+# With no marked number, a bare segment of 3 to 5 digits is a number. Exactly
+# one is an answer. None, or more than one, is no answer, because a guess
+# between two numbers is a claim on an issue nobody chose.
+#
+# Measured for the bare rule before it was built: in the 199 pull requests
+# since registration began that cite an issue, it gave the right number for
+# 176 and a wrong one for 1 (a branch named for one issue whose pull request
+# did another).
 mc_issue_from_name() {
-	local seg found="" count=0
+	local seg found="" count=0 marked="" marks=0 after_word=0
 	local -a segs=()
 	IFS='-/_' read -r -a segs <<<"$1"
 	for seg in "${segs[@]+"${segs[@]}"}"; do
+		if [ "$after_word" -eq 1 ] && mc_is_issue_number "$seg"; then
+			marked="$seg"
+			marks=$((marks + 1))
+		fi
+		after_word=0
 		case "$seg" in
+		[Ii][Ss][Ss][Uu][Ee])
+			after_word=1
+			;;
+		[Ii][Ss][Ss][Uu][Ee]*)
+			if mc_is_issue_number "${seg#?????}"; then
+				marked="${seg#?????}"
+				marks=$((marks + 1))
+			fi
+			;;
 		[0-9][0-9][0-9] | [0-9][0-9][0-9][0-9] | [0-9][0-9][0-9][0-9][0-9])
 			found="$seg"
 			count=$((count + 1))
 			;;
 		esac
 	done
+	if [ "$marks" -gt 0 ]; then
+		if [ "$marks" -eq 1 ]; then
+			printf '%s\n' "$marked"
+		fi
+		return 0
+	fi
 	if [ "$count" -eq 1 ]; then
 		printf '%s\n' "$found"
 	fi
 	return 0
+}
+
+# mc_is_issue_number <text> — true when the text is 1 to 5 digits with no
+# leading zero.
+mc_is_issue_number() {
+	case "$1" in
+	[1-9] | [1-9][0-9] | [1-9][0-9][0-9] | [1-9][0-9][0-9][0-9] | [1-9][0-9][0-9][0-9][0-9])
+		return 0
+		;;
+	esac
+	return 1
 }
 
 # mc_worktrees — `git worktree list --porcelain` for this repository.

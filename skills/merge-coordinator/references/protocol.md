@@ -199,9 +199,10 @@ the second one without knowing this tool exists, which is why it counts. A title
 issue is a **mention**, and it is never refused. Plan PRs and phase PRs name their issue all the time:
 73 pairs in the 958 PRs this was measured on.
 
-`register.sh` writes the claim. `--issue N` sets it. Without that, a single 3–5 digit number in the
-branch name gives it, and the line says `(from branch name)`. An update keeps the claim already in
-the block unless `--issue` is given again.
+`register.sh` writes the claim. `--issue N` sets it. Without that, the branch name gives it: a
+1–5 digit number marked with the word `issue` (`fix-issue-12-nav`, `issue12`), or else a single
+3–5 digit number. The line says `(from branch name)`. An update keeps the claim already in the
+block unless `--issue` is given again.
 
 When two open pull requests claim the same issue, **the lowest number holds it** and each newer one is
 a duplicate. A claim declared as `issue: N part-of #M` is planned work beside another pull request,

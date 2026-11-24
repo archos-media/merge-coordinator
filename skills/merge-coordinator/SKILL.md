@@ -45,7 +45,9 @@ never removes one, and it never changes the landing order. Being wrong in a PR
 body cannot reorder somebody else's work.
 
 **The issue claim is not a prediction.** Registration writes `issue: N` into
-the block, from `--issue N` or from a single issue number in the branch name.
+the block, from `--issue N` or from the branch name: a number marked with the
+word `issue` (`fix-issue-12-nav`), or else a single 3 to 5 digit number. Name
+a branch for an issue `issue-N-...` and no `--issue` is needed.
 The `issue claim` check, in a repository that runs the issue-claim workflow,
 fails a second open PR that claims the same issue, and
 a hook refuses a worktree named for a claimed issue before it exists. Planned
