@@ -8,12 +8,13 @@ fails a pull request whose version has no section.
 
 ## [v0.5.5]
 
-- **Changed:** a branch or worktree name now gives a 1 or 2 digit issue number
-  when it is the name's last segment and the name holds no other number:
-  `fix-nav-12` claims #12. A repository whose issues are still below #100 no
-  longer needs `--issue` on every registration. `fix-12-nav`, `release-v0-8-7`
-  and `step-1-of-2` still give nothing, and a 3 to 5 digit number anywhere in
-  the name still wins.
+- **Added:** a branch or worktree name can mark its issue number with the
+  word `issue`: `fix-issue-12-nav`, `issue_7` and `issue12` claim #12, #7 and
+  #12. A marked number may have 1 to 5 digits, so a repository whose issues are
+  still below #100 no longer needs `--issue` on every registration. It wins
+  over a bare number in the same name. Bare numbers keep the old rule (one
+  segment of 3 to 5 digits), so `nav-phase-2` and `upgrade-node-20` still give
+  nothing.
 
 ## [v0.5.4]
 

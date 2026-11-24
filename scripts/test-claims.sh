@@ -147,16 +147,21 @@ check_name fix-12-nav ""
 check_name x-123456 ""
 check_name plan-332-then-667 ""
 check_name 1467 1467
-check_name fix-nav-12 12
-check_name feature/nav_7 7
-check_name 9 9
-check_name step-1-of-2 ""
-check_name fix-12-nav-3 ""
-check_name x-123456-7 ""
-check_name plan-332-then-7 332
-check_name fix-nav-07 ""
-check_name fix-nav-0 ""
-check_name fix-nav-123456 ""
+check_name fix-issue-12-nav 12
+check_name worktree-issue-31-note 31
+check_name feature/issue_7 7
+check_name fix-issue7 7
+check_name Issue-3 3
+check_name plan-1467-issue-12 12
+check_name fix-nav-12 ""
+check_name nav-phase-2 ""
+check_name upgrade-node-20 ""
+check_name issue-07 ""
+check_name issue-0 ""
+check_name issue-123456 ""
+check_name issue-nav-12 ""
+check_name issues-12 ""
+check_name issue-12-issue-15 ""
 
 # --------------------------------------------------------------------------
 # 2. The rule.
