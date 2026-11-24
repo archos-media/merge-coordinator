@@ -6,6 +6,15 @@ here is `## [vN.N.N]`, the form this repository's own release guard looks for.
 The section under it is published as that tag's GitHub Release, and CI
 fails a pull request whose version has no section.
 
+## [v0.5.5]
+
+- **Changed:** a branch or worktree name now gives a 1 or 2 digit issue number
+  when it is the name's last segment and the name holds no other number:
+  `fix-nav-12` claims #12. A repository whose issues are still below #100 no
+  longer needs `--issue` on every registration. `fix-12-nav`, `release-v0-8-7`
+  and `step-1-of-2` still give nothing, and a 3 to 5 digit number anywhere in
+  the name still wins.
+
 ## [v0.5.4]
 
 - **Fixed:** without a merge queue, `/merge-status` showed a pull request that

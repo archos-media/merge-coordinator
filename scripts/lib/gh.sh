@@ -679,14 +679,24 @@ mc_dup_label() {
 # number. Exactly one number is an answer. None, or more than one, is no answer,
 # because a guess between two numbers is a claim on an issue nobody chose.
 #
+# A segment of 1 or 2 digits is a number only when it is the last segment and
+# no other segment is all digits, so a young repository's "fix-nav-12" gives
+# 12 while "fix-12-nav", "release-v0-8-7" and "step-1-of-2" give nothing. A
+# leading zero ("fix-07") is no number.
+#
 # Measured before this was built: in the 199 pull requests since registration
 # began that cite an issue, this gave the right number for 176 and a wrong one
 # for 1 (a branch named for one issue whose pull request did another).
 mc_issue_from_name() {
-	local seg found="" count=0
+	local seg found="" count=0 digit_segs=0 last=""
 	local -a segs=()
 	IFS='-/_' read -r -a segs <<<"$1"
 	for seg in "${segs[@]+"${segs[@]}"}"; do
+		last="$seg"
+		case "$seg" in
+		'' | *[!0-9]*) continue ;;
+		esac
+		digit_segs=$((digit_segs + 1))
 		case "$seg" in
 		[0-9][0-9][0-9] | [0-9][0-9][0-9][0-9] | [0-9][0-9][0-9][0-9][0-9])
 			found="$seg"
@@ -694,6 +704,14 @@ mc_issue_from_name() {
 			;;
 		esac
 	done
+	if [ "$count" -eq 0 ] && [ "$digit_segs" -eq 1 ]; then
+		case "$last" in
+		[1-9] | [1-9][0-9])
+			found="$last"
+			count=1
+			;;
+		esac
+	fi
 	if [ "$count" -eq 1 ]; then
 		printf '%s\n' "$found"
 	fi

@@ -200,7 +200,7 @@ issue is a **mention**, and it is never refused. Plan PRs and phase PRs name the
 73 pairs in the 958 PRs this was measured on.
 
 `register.sh` writes the claim. `--issue N` sets it. Without that, a single 3–5 digit number in the
-branch name gives it, and the line says `(from branch name)`. An update keeps the claim already in
+branch name gives it (or, when the name has no other number, a 1–2 digit one at its end: `fix-nav-12`), and the line says `(from branch name)`. An update keeps the claim already in
 the block unless `--issue` is given again.
 
 When two open pull requests claim the same issue, **the lowest number holds it** and each newer one is
